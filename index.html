@@ -463,6 +463,7 @@
                 drivers: {},
                 constructors: {},
                 races: {},
+                circuits: {},
             });
             const [loading, setLoading] = useState(true);
             const [error, setError] = useState(null);
@@ -485,11 +486,12 @@
                             ? '/f1-results-app/public/' 
                             : './public/';
 
-                        const [resultsText, driversText, constructorsText, racesText] = await Promise.all([
+                        const [resultsText, driversText, constructorsText, racesText, circuitsText] = await Promise.all([
                             fetch(`${basePath}results.csv`).then(r => r.text()),
                             fetch(`${basePath}drivers.csv`).then(r => r.text()),
                             fetch(`${basePath}constructors.csv`).then(r => r.text()),
                             fetch(`${basePath}races.csv`).then(r => r.text()),
+                            fetch(`${basePath}circuits.csv`).then(r => r.text()),
                         ]);
 
                         // Parse CSVs
@@ -497,6 +499,7 @@
                         const drivers = Papa.parse(driversText, { header: true }).data.filter(d => d.driverId);
                         const constructors = Papa.parse(constructorsText, { header: true }).data.filter(c => c.constructorId);
                         const races = Papa.parse(racesText, { header: true }).data.filter(r => r.raceId);
+                        const circuits = Papa.parse(circuitsText, { header: true }).data.filter(c => c.circuitId);
 
                         // Create lookup objects
                         const driversMap = {};
@@ -514,6 +517,11 @@
                             racesMap[r.raceId] = r;
                         });
 
+                        const circuitsMap = {};
+                        circuits.forEach(c => {
+                            circuitsMap[c.circuitId] = c;
+                        });
+
                         // Extract unique seasons
                         const uniqueSeasons = [...new Set(races.map(r => r.year))].sort((a, b) => b - a);
                         setSeasons(uniqueSeasons);
@@ -523,6 +531,7 @@
                             drivers: driversMap,
                             constructors: constructorsMap,
                             races: racesMap,
+                            circuits: circuitsMap,
                         });
                     } catch (err) {
                         setError(`Failed to load data: ${err.message}`);
@@ -635,7 +644,7 @@
                                 {race && (
                                     <>
                                         <div className="race-header">
-                                            <h2>{race.name}</h2>
+                                            <h2>{race.name} - {data.circuits[race.circuitId]?.name || 'Unknown Circuit'}</h2>
                                             <p>{new Date(race.date).toLocaleDateString('en-US', { 
                                                 year: 'numeric', 
                                                 month: 'long', 
@@ -760,14 +769,17 @@
                                             const groupedBySeasonAndRace = {};
                                             sortedResults.forEach(result => {
                                                 const race = data.races[result.raceId];
+                                                const circuit = data.circuits[race.circuitId];
                                                 const season = race.year;
                                                 const raceName = race.name;
+                                                const circuitName = circuit ? circuit.name : 'Unknown Circuit';
+                                                const displayName = `${raceName} - ${circuitName}`;
                                                 const groupKey = `${season}-${raceName}`;
                                                 
                                                 if (!groupedBySeasonAndRace[groupKey]) {
                                                     groupedBySeasonAndRace[groupKey] = {
                                                         season,
-                                                        raceName,
+                                                        raceName: displayName,
                                                         results: []
                                                     };
                                                 }
