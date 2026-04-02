@@ -470,6 +470,9 @@
             const [currentPage, setCurrentPage] = useState('list'); // 'list' or 'detail'
             const [selectedRaceId, setSelectedRaceId] = useState(null);
             const [seasonFilter, setSeasonFilter] = useState('');
+            const [yearFilter, setYearFilter] = useState('');
+            const [driverFilter, setDriverFilter] = useState('');
+            const [constructorFilter, setConstructorFilter] = useState('');
             const [searchDriver, setSearchDriver] = useState('');
             const [searchRace, setSearchRace] = useState('');
             const [seasons, setSeasons] = useState([]);
@@ -552,13 +555,15 @@
 
                 if (!race || !driver || !constructor) return false;
 
-                const matchesSeason = !seasonFilter || race.year === seasonFilter;
-                const matchesDriver = !searchDriver || 
+                const matchesYear = !yearFilter || race.year === yearFilter;
+                const matchesDriver = !driverFilter || result.driverId === driverFilter;
+                const matchesConstructor = !constructorFilter || result.constructorId === constructorFilter;
+                const matchesSearchDriver = !searchDriver || 
                     `${driver.forename} ${driver.surname}`.toLowerCase().includes(searchDriver.toLowerCase());
-                const matchesRace = !searchRace || 
+                const matchesSearchRace = !searchRace || 
                     race.name.toLowerCase().includes(searchRace.toLowerCase());
 
-                return matchesSeason && matchesDriver && matchesRace;
+                return matchesYear && matchesDriver && matchesConstructor && matchesSearchDriver && matchesSearchRace;
             });
 
             // Sort results by race date (newest first)
@@ -580,6 +585,9 @@
 
             const handleReset = () => {
                 setSeasonFilter('');
+                setYearFilter('');
+                setDriverFilter('');
+                setConstructorFilter('');
                 setSearchDriver('');
                 setSearchRace('');
             };
@@ -601,6 +609,39 @@
                 if (pos === 2) return '🥈';
                 if (pos === 3) return '🥉';
                 return '🏁';
+            };
+
+            // Get available drivers based on year filter
+            const getAvailableDrivers = () => {
+                const availableDriverIds = new Set();
+                data.results.forEach(result => {
+                    const race = data.races[result.raceId];
+                    if (!yearFilter || race.year === yearFilter) {
+                        availableDriverIds.add(result.driverId);
+                    }
+                });
+                return Array.from(availableDriverIds)
+                    .map(driverId => data.drivers[driverId])
+                    .filter(d => d)
+                    .sort((a, b) => `${a.forename} ${a.surname}`.localeCompare(`${b.forename} ${b.surname}`));
+            };
+
+            // Get available constructors based on year and driver filters
+            const getAvailableConstructors = () => {
+                const availableConstructorIds = new Set();
+                data.results.forEach(result => {
+                    const race = data.races[result.raceId];
+                    const matchesYear = !yearFilter || race.year === yearFilter;
+                    const matchesDriver = !driverFilter || result.driverId === driverFilter;
+                    
+                    if (matchesYear && matchesDriver) {
+                        availableConstructorIds.add(result.constructorId);
+                    }
+                });
+                return Array.from(availableConstructorIds)
+                    .map(constructorId => data.constructors[constructorId])
+                    .filter(c => c)
+                    .sort((a, b) => a.name.localeCompare(b.name));
             };
 
             if (loading) {
@@ -705,15 +746,54 @@
                     </header>
                     <div className="controls">
                         <div className="control-group">
-                            <label htmlFor="season">Season</label>
+                            <label htmlFor="year">Year</label>
                             <select 
-                                id="season"
-                                value={seasonFilter} 
-                                onChange={e => setSeasonFilter(e.target.value)}
+                                id="year"
+                                value={yearFilter} 
+                                onChange={e => {
+                                    setYearFilter(e.target.value);
+                                    // Reset dependent filters when year changes
+                                    setDriverFilter('');
+                                    setConstructorFilter('');
+                                }}
                             >
-                                <option value="">All Seasons</option>
+                                <option value="">All Years</option>
                                 {seasons.map(year => (
                                     <option key={year} value={year}>{year}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="control-group">
+                            <label htmlFor="driver-filter">Driver</label>
+                            <select 
+                                id="driver-filter"
+                                value={driverFilter} 
+                                onChange={e => {
+                                    setDriverFilter(e.target.value);
+                                    // Reset constructor filter when driver changes
+                                    setConstructorFilter('');
+                                }}
+                            >
+                                <option value="">All Drivers</option>
+                                {getAvailableDrivers().map(driver => (
+                                    <option key={driver.driverId} value={driver.driverId}>
+                                        {driver.forename} {driver.surname}
+                                    </option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="control-group">
+                            <label htmlFor="constructor-filter">Constructor</label>
+                            <select 
+                                id="constructor-filter"
+                                value={constructorFilter} 
+                                onChange={e => setConstructorFilter(e.target.value)}
+                            >
+                                <option value="">All Constructors</option>
+                                {getAvailableConstructors().map(constructor => (
+                                    <option key={constructor.constructorId} value={constructor.constructorId}>
+                                        {constructor.name}
+                                    </option>
                                 ))}
                             </select>
                         </div>
