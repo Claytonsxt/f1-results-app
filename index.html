@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>F1 Race Results</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .controls {
+            padding: 20px;
+            background: #f8f9fa;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .control-group label {
+            font-weight: 600;
+            font-size: 0.9em;
+            color: #333;
+        }
+
+        .control-group input,
+        .control-group select {
+            padding: 10px 12px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 1em;
+            transition: border-color 0.3s;
+        }
+
+        .control-group input:focus,
+        .control-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .control-group input {
+            flex: 1;
+            min-width: 200px;
+        }
+
+        .control-group select {
+            min-width: 150px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            font-size: 1em;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-weight: 600;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #d0d0d0;
+        }
+
+        .btn-back {
+            background: #667eea;
+            color: white;
+            margin-bottom: 20px;
+        }
+
+        .btn-back:hover {
+            background: #5568d3;
+        }
+
+        .content {
+            padding: 20px;
+        }
+
+        .results-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .results-table thead {
+            background: #f8f9fa;
+        }
+
+        .results-table th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .results-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .results-table tbody tr:hover {
+            background: #f8f9fa;
+            cursor: pointer;
+        }
+
+        .results-table tbody tr {
+            transition: background 0.2s;
+        }
+
+        .position-badge {
+            display: inline-block;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            text-align: center;
+            line-height: 32px;
+            font-weight: 600;
+            font-size: 0.9em;
+        }
+
+        .position-badge.dnf {
+            background: #999;
+        }
+
+        .race-detail {
+            max-width: 800px;
+        }
+
+        .race-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 25px;
+            border-radius: 8px;
+            margin-bottom: 30px;
+        }
+
+        .race-header h2 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+
+        .race-header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .race-results-detail {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .race-results-detail thead {
+            background: #f8f9fa;
+        }
+
+        .race-results-detail th {
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .race-results-detail td {
+            padding: 12px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+
+        .error {
+            background: #ffebee;
+            color: #c62828;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 40px;
+            color: #999;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 1.8em;
+            }
+
+            .controls {
+                flex-direction: column;
+            }
+
+            .control-group input {
+                min-width: unset;
+            }
+
+            .results-table {
+                font-size: 0.9em;
+            }
+
+            .results-table th,
+            .results-table td {
+                padding: 8px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        function App() {
+            const [data, setData] = useState({
+                results: [],
+                drivers: {},
+                constructors: {},
+                races: {},
+            });
+            const [loading, setLoading] = useState(true);
+            const [error, setError] = useState(null);
+            const [currentPage, setCurrentPage] = useState('list'); // 'list' or 'detail'
+            const [selectedRaceId, setSelectedRaceId] = useState(null);
+            const [seasonFilter, setSeasonFilter] = useState('');
+            const [searchDriver, setSearchDriver] = useState('');
+            const [searchRace, setSearchRace] = useState('');
+            const [seasons, setSeasons] = useState([]);
+
+            // Load CSV data
+            useEffect(() => {
+                const loadData = async () => {
+                    try {
+                        setLoading(true);
+                        setError(null);
+
+                        const basePath = window.location.pathname.includes('github.io') 
+                            ? '/f1-results-app/public/' 
+                            : './public/';
+
+                        const [resultsText, driversText, constructorsText, racesText] = await Promise.all([
+                            fetch(`${basePath}results.csv`).then(r => r.text()),
+                            fetch(`${basePath}drivers.csv`).then(r => r.text()),
+                            fetch(`${basePath}constructors.csv`).then(r => r.text()),
+                            fetch(`${basePath}races.csv`).then(r => r.text()),
+                        ]);
+
+                        // Parse CSVs
+                        const results = Papa.parse(resultsText, { header: true }).data.filter(r => r.resultId);
+                        const drivers = Papa.parse(driversText, { header: true }).data.filter(d => d.driverId);
+                        const constructors = Papa.parse(constructorsText, { header: true }).data.filter(c => c.constructorId);
+                        const races = Papa.parse(racesText, { header: true }).data.filter(r => r.raceId);
+
+                        // Create lookup objects
+                        const driversMap = {};
+                        drivers.forEach(d => {
+                            driversMap[d.driverId] = d;
+                        });
+
+                        const constructorsMap = {};
+                        constructors.forEach(c => {
+                            constructorsMap[c.constructorId] = c;
+                        });
+
+                        const racesMap = {};
+                        races.forEach(r => {
+                            racesMap[r.raceId] = r;
+                        });
+
+                        // Extract unique seasons
+                        const uniqueSeasons = [...new Set(races.map(r => r.year))].sort((a, b) => b - a);
+                        setSeasons(uniqueSeasons);
+
+                        setData({
+                            results,
+                            drivers: driversMap,
+                            constructors: constructorsMap,
+                            races: racesMap,
+                        });
+                    } catch (err) {
+                        setError(`Failed to load data: ${err.message}`);
+                        console.error(err);
+                    } finally {
+                        setLoading(false);
+                    }
+                };
+
+                loadData();
+            }, []);
+
+            // Filter and search results
+            const filteredResults = data.results.filter(result => {
+                const race = data.races[result.raceId];
+                const driver = data.drivers[result.driverId];
+                const constructor = data.constructors[result.constructorId];
+
+                if (!race || !driver || !constructor) return false;
+
+                const matchesSeason = !seasonFilter || race.year === seasonFilter;
+                const matchesDriver = !searchDriver || 
+                    `${driver.forename} ${driver.surname}`.toLowerCase().includes(searchDriver.toLowerCase());
+                const matchesRace = !searchRace || 
+                    race.name.toLowerCase().includes(searchRace.toLowerCase());
+
+                return matchesSeason && matchesDriver && matchesRace;
+            });
+
+            // Sort results by race date (newest first)
+            const sortedResults = [...filteredResults].sort((a, b) => {
+                const raceA = data.races[a.raceId];
+                const raceB = data.races[b.raceId];
+                return new Date(raceB.date) - new Date(raceA.date);
+            });
+
+            const handleRaceClick = (raceId) => {
+                setSelectedRaceId(raceId);
+                setCurrentPage('detail');
+            };
+
+            const handleBack = () => {
+                setCurrentPage('list');
+                setSelectedRaceId(null);
+            };
+
+            const handleReset = () => {
+                setSeasonFilter('');
+                setSearchDriver('');
+                setSearchRace('');
+            };
+
+            if (loading) {
+                return (
+                    <div className="container">
+                        <header>
+                            <h1>F1 Race Results</h1>
+                        </header>
+                        <div className="content">
+                            <div className="loading">Loading data...</div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (error) {
+                return (
+                    <div className="container">
+                        <header>
+                            <h1>F1 Race Results</h1>
+                        </header>
+                        <div className="content">
+                            <div className="error">{error}</div>
+                        </div>
+                    </div>
+                );
+            }
+
+            if (currentPage === 'detail') {
+                const race = data.races[selectedRaceId];
+                const raceResults = data.results.filter(r => r.raceId === selectedRaceId);
+
+                return (
+                    <div className="container">
+                        <header>
+                            <h1>F1 Race Results</h1>
+                        </header>
+                        <div className="content">
+                            <button className="btn-back" onClick={handleBack}>← Back to Results</button>
+                            <div className="race-detail">
+                                {race && (
+                                    <>
+                                        <div className="race-header">
+                                            <h2>{race.name}</h2>
+                                            <p>{new Date(race.date).toLocaleDateString('en-US', { 
+                                                year: 'numeric', 
+                                                month: 'long', 
+                                                day: 'numeric' 
+                                            })}</p>
+                                        </div>
+                                        <table className="race-results-detail">
+                                            <thead>
+                                                <tr>
+                                                    <th>Position</th>
+                                                    <th>Driver</th>
+                                                    <th>Constructor</th>
+                                                    <th>Points</th>
+                                                    <th>Laps</th>
+                                                    <th>Time</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {raceResults.map(result => {
+                                                    const driver = data.drivers[result.driverId];
+                                                    const constructor = data.constructors[result.constructorId];
+                                                    const isDNF = !result.position || result.position === '\\N';
+                                                    const position = isDNF ? 'DNF' : result.position;
+
+                                                    return (
+                                                        <tr key={result.resultId}>
+                                                            <td>
+                                                                <span className={`position-badge ${isDNF ? 'dnf' : ''}`}>
+                                                                    {position}
+                                                                </span>
+                                                            </td>
+                                                            <td>{driver.forename} {driver.surname}</td>
+                                                            <td>{constructor.name}</td>
+                                                            <td>{result.points}</td>
+                                                            <td>{result.laps}</td>
+                                                            <td>{result.time || '-'}</td>
+                                                        </tr>
+                                                    );
+                                                })}
+                                            </tbody>
+                                        </table>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="container">
+                    <header>
+                        <h1>🏁 F1 Race Results</h1>
+                        <p>Explore Formula 1 race results from across the seasons</p>
+                    </header>
+                    <div className="controls">
+                        <div className="control-group">
+                            <label htmlFor="season">Season</label>
+                            <select 
+                                id="season"
+                                value={seasonFilter} 
+                                onChange={e => setSeasonFilter(e.target.value)}
+                            >
+                                <option value="">All Seasons</option>
+                                {seasons.map(year => (
+                                    <option key={year} value={year}>{year}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="control-group" style={{ flex: 1 }}>
+                            <label htmlFor="driver">Search Driver</label>
+                            <input 
+                                id="driver"
+                                type="text" 
+                                placeholder="e.g., Lewis Hamilton"
+                                value={searchDriver}
+                                onChange={e => setSearchDriver(e.target.value)}
+                            />
+                        </div>
+                        <div className="control-group" style={{ flex: 1 }}>
+                            <label htmlFor="race">Search Race</label>
+                            <input 
+                                id="race"
+                                type="text" 
+                                placeholder="e.g., Monaco Grand Prix"
+                                value={searchRace}
+                                onChange={e => setSearchRace(e.target.value)}
+                            />
+                        </div>
+                        <div className="button-group">
+                            <button className="btn-secondary" onClick={handleReset}>Reset</button>
+                        </div>
+                    </div>
+                    <div className="content">
+                        {sortedResults.length === 0 ? (
+                            <div className="no-results">
+                                <p>No results found. Try adjusting your filters or search terms.</p>
+                            </div>
+                        ) : (
+                            <>
+                                <p style={{ color: '#666', marginBottom: '10px' }}>
+                                    Showing {sortedResults.length} results
+                                </p>
+                                <table className="results-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Race</th>
+                                            <th>Date</th>
+                                            <th>Driver</th>
+                                            <th>Constructor</th>
+                                            <th>Position</th>
+                                            <th>Points</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {sortedResults.map(result => {
+                                            const race = data.races[result.raceId];
+                                            const driver = data.drivers[result.driverId];
+                                            const constructor = data.constructors[result.constructorId];
+                                            const isDNF = !result.position || result.position === '\\N';
+                                            const position = isDNF ? 'DNF' : result.position;
+
+                                            return (
+                                                <tr 
+                                                    key={result.resultId}
+                                                    onClick={() => handleRaceClick(result.raceId)}
+                                                    style={{ cursor: 'pointer' }}
+                                                >
+                                                    <td>{race.name}</td>
+                                                    <td>{new Date(race.date).toLocaleDateString()}</td>
+                                                    <td>{driver.forename} {driver.surname}</td>
+                                                    <td>{constructor.name}</td>
+                                                    <td>
+                                                        <span className={`position-badge ${isDNF ? 'dnf' : ''}`}>
+                                                            {position}
+                                                        </span>
+                                                    </td>
+                                                    <td>{result.points}</td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            </>
+                        )}
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
