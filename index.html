@@ -256,6 +256,24 @@
             color: #999;
         }
 
+        .season-break {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            height: 40px;
+            font-weight: 700;
+            color: white;
+            font-size: 1.1em;
+            text-align: center;
+            vertical-align: middle;
+            letter-spacing: 1px;
+        }
+
+        .season-break-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 40px;
+        }
+
         @media (max-width: 768px) {
             header h1 {
                 font-size: 1.8em;
@@ -560,14 +578,23 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {sortedResults.map(result => {
+                                        {sortedResults.map((result, index) => {
                                             const race = data.races[result.raceId];
                                             const driver = data.drivers[result.driverId];
                                             const constructor = data.constructors[result.constructorId];
                                             const isDNF = !result.position || result.position === '\\N';
                                             const position = isDNF ? 'DNF' : result.position;
+                                            const currentYear = race.year;
+                                            const isSeasonBreak = index > 0 && sortedResults[index - 1] && data.races[sortedResults[index - 1].raceId].year !== currentYear;
 
-                                            return (
+                                            return [
+                                                isSeasonBreak && (
+                                                    <tr key={`season-break-${currentYear}`} className="season-break">
+                                                        <td colSpan="6" style={{ padding: 0 }}>
+                                                            <div className="season-break-cell">{currentYear} Season</div>
+                                                        </td>
+                                                    </tr>
+                                                ),
                                                 <tr 
                                                     key={result.resultId}
                                                     onClick={() => handleRaceClick(result.raceId)}
@@ -584,8 +611,8 @@
                                                     </td>
                                                     <td>{result.points}</td>
                                                 </tr>
-                                            );
-                                        })}
+                                            ].filter(Boolean);
+                                        }).flat()}
                                     </tbody>
                                 </table>
                             </>
