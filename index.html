@@ -755,7 +755,6 @@
                                     <thead>
                                         <tr>
                                             <th>Race</th>
-                                            <th style={{ width: '100px' }}>Results Count</th>
                                             <th>Date</th>
                                             <th>Driver</th>
                                             <th>Constructor</th>
@@ -810,7 +809,7 @@
                                                 return [
                                                     isSeasonBreak && (
                                                         <tr key={`season-break-${season}`} className="season-break">
-                                                            <td colSpan="7" style={{ padding: 0 }}>
+                                                            <td colSpan="6" style={{ padding: 0 }}>
                                                                 <div className="season-break-cell">{season} Season</div>
                                                             </td>
                                                         </tr>
@@ -824,7 +823,6 @@
                                                             <span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>▶</span>
                                                             {raceName}
                                                         </td>
-                                                        <td>{resultsForRace.length} result{resultsForRace.length !== 1 ? 's' : ''}</td>
                                                         <td colSpan="5"></td>
                                                     </tr>,
                                                     isExpanded && resultsForRace.map(result => {
@@ -842,7 +840,7 @@
                                                                 className="race-result-row"
                                                                 onClick={() => handleRaceClick(result.raceId)}
                                                             >
-                                                                <td>{new Date(race.date).getFullYear()}</td>
+                                                                <td>{race.name} - {data.circuits[race.circuitId]?.name || 'Unknown'}</td>
                                                                 <td>{new Date(race.date).toLocaleDateString()}</td>
                                                                 <td>{driver.forename} {driver.surname}</td>
                                                                 <td>{constructor.name}</td>
