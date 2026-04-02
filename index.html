@@ -667,40 +667,57 @@
                                     </thead>
                                     <tbody>
                                         {(() => {
-                                            // Group results by race name
-                                            const groupedByRace = {};
+                                            // Group results by season, then by race name
+                                            const groupedBySeasonAndRace = {};
                                             sortedResults.forEach(result => {
                                                 const race = data.races[result.raceId];
-                                                if (!groupedByRace[race.name]) {
-                                                    groupedByRace[race.name] = [];
+                                                const season = race.year;
+                                                const raceName = race.name;
+                                                const groupKey = `${season}-${raceName}`;
+                                                
+                                                if (!groupedBySeasonAndRace[groupKey]) {
+                                                    groupedBySeasonAndRace[groupKey] = {
+                                                        season,
+                                                        raceName,
+                                                        results: []
+                                                    };
                                                 }
-                                                groupedByRace[race.name].push(result);
+                                                groupedBySeasonAndRace[groupKey].results.push(result);
                                             });
 
-                                            const raceNames = Object.keys(groupedByRace).sort((a, b) => {
-                                                const latestDateA = Math.max(...groupedByRace[a].map(r => new Date(data.races[r.raceId].date).getTime()));
-                                                const latestDateB = Math.max(...groupedByRace[b].map(r => new Date(data.races[r.raceId].date).getTime()));
+                                            // Sort groups: newest seasons first, then by most recent race date
+                                            const sortedGroups = Object.entries(groupedBySeasonAndRace).sort((a, b) => {
+                                                const [keyA, groupA] = a;
+                                                const [keyB, groupB] = b;
+                                                
+                                                // First sort by season (descending)
+                                                if (groupA.season !== groupB.season) {
+                                                    return groupB.season - groupA.season;
+                                                }
+                                                
+                                                // Then sort by most recent race date within same season
+                                                const latestDateA = Math.max(...groupA.results.map(r => new Date(data.races[r.raceId].date).getTime()));
+                                                const latestDateB = Math.max(...groupB.results.map(r => new Date(data.races[r.raceId].date).getTime()));
                                                 return latestDateB - latestDateA;
                                             });
 
-                                            return raceNames.map((raceName, raceIndex) => {
-                                                const resultsForRace = groupedByRace[raceName];
-                                                const isExpanded = expandedRaces[raceName];
-                                                const firstRaceOfGroup = data.races[resultsForRace[0].raceId];
-                                                const isSeasonBreak = raceIndex > 0 && data.races[groupedByRace[raceNames[raceIndex - 1]][0].raceId].year !== firstRaceOfGroup.year;
+                                            return sortedGroups.map(([groupKey, group], groupIndex) => {
+                                                const { season, raceName, results: resultsForRace } = group;
+                                                const isExpanded = expandedRaces[groupKey];
+                                                const isSeasonBreak = groupIndex > 0 && sortedGroups[groupIndex - 1][1].season !== season;
 
                                                 return [
                                                     isSeasonBreak && (
-                                                        <tr key={`season-break-${firstRaceOfGroup.year}`} className="season-break">
+                                                        <tr key={`season-break-${season}`} className="season-break">
                                                             <td colSpan="7" style={{ padding: 0 }}>
-                                                                <div className="season-break-cell">{firstRaceOfGroup.year} Season</div>
+                                                                <div className="season-break-cell">{season} Season</div>
                                                             </td>
                                                         </tr>
                                                     ),
                                                     <tr 
-                                                        key={`race-group-${raceName}`}
+                                                        key={`race-group-${groupKey}`}
                                                         className="race-group-row"
-                                                        onClick={() => setExpandedRaces({...expandedRaces, [raceName]: !isExpanded})}
+                                                        onClick={() => setExpandedRaces({...expandedRaces, [groupKey]: !isExpanded})}
                                                     >
                                                         <td>
                                                             <span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>▶</span>
