@@ -274,6 +274,41 @@
             height: 40px;
         }
 
+        .race-group-row {
+            background: #f0f0f0 !important;
+            font-weight: 600;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .race-group-row:hover {
+            background: #e8e8e8 !important;
+        }
+
+        .race-group-row td:first-child {
+            padding-left: 25px;
+        }
+
+        .expand-icon {
+            display: inline-block;
+            margin-right: 8px;
+            font-size: 0.9em;
+            transition: transform 0.2s;
+        }
+
+        .expand-icon.expanded {
+            transform: rotate(90deg);
+        }
+
+        .race-result-row {
+            background: #fafafa;
+            font-size: 0.95em;
+        }
+
+        .race-result-row td:first-child {
+            padding-left: 40px;
+        }
+
         @media (max-width: 768px) {
             header h1 {
                 font-size: 1.8em;
@@ -319,6 +354,7 @@
             const [searchDriver, setSearchDriver] = useState('');
             const [searchRace, setSearchRace] = useState('');
             const [seasons, setSeasons] = useState([]);
+            const [expandedRaces, setExpandedRaces] = useState({});
 
             // Load CSV data
             useEffect(() => {
@@ -570,6 +606,7 @@
                                     <thead>
                                         <tr>
                                             <th>Race</th>
+                                            <th style={{ width: '100px' }}>Results Count</th>
                                             <th>Date</th>
                                             <th>Driver</th>
                                             <th>Constructor</th>
@@ -578,41 +615,78 @@
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {sortedResults.map((result, index) => {
-                                            const race = data.races[result.raceId];
-                                            const driver = data.drivers[result.driverId];
-                                            const constructor = data.constructors[result.constructorId];
-                                            const isDNF = !result.position || result.position === '\\N';
-                                            const position = isDNF ? 'DNF' : result.position;
-                                            const currentYear = race.year;
-                                            const isSeasonBreak = index > 0 && sortedResults[index - 1] && data.races[sortedResults[index - 1].raceId].year !== currentYear;
+                                        {(() => {
+                                            // Group results by race name
+                                            const groupedByRace = {};
+                                            sortedResults.forEach(result => {
+                                                const race = data.races[result.raceId];
+                                                if (!groupedByRace[race.name]) {
+                                                    groupedByRace[race.name] = [];
+                                                }
+                                                groupedByRace[race.name].push(result);
+                                            });
 
-                                            return [
-                                                isSeasonBreak && (
-                                                    <tr key={`season-break-${currentYear}`} className="season-break">
-                                                        <td colSpan="6" style={{ padding: 0 }}>
-                                                            <div className="season-break-cell">{currentYear} Season</div>
+                                            const raceNames = Object.keys(groupedByRace).sort((a, b) => {
+                                                const latestDateA = Math.max(...groupedByRace[a].map(r => new Date(data.races[r.raceId].date).getTime()));
+                                                const latestDateB = Math.max(...groupedByRace[b].map(r => new Date(data.races[r.raceId].date).getTime()));
+                                                return latestDateB - latestDateA;
+                                            });
+
+                                            return raceNames.map((raceName, raceIndex) => {
+                                                const resultsForRace = groupedByRace[raceName];
+                                                const isExpanded = expandedRaces[raceName];
+                                                const firstRaceOfGroup = data.races[resultsForRace[0].raceId];
+                                                const isSeasonBreak = raceIndex > 0 && data.races[groupedByRace[raceNames[raceIndex - 1]][0].raceId].year !== firstRaceOfGroup.year;
+
+                                                return [
+                                                    isSeasonBreak && (
+                                                        <tr key={`season-break-${firstRaceOfGroup.year}`} className="season-break">
+                                                            <td colSpan="7" style={{ padding: 0 }}>
+                                                                <div className="season-break-cell">{firstRaceOfGroup.year} Season</div>
+                                                            </td>
+                                                        </tr>
+                                                    ),
+                                                    <tr 
+                                                        key={`race-group-${raceName}`}
+                                                        className="race-group-row"
+                                                        onClick={() => setExpandedRaces({...expandedRaces, [raceName]: !isExpanded})}
+                                                    >
+                                                        <td>
+                                                            <span className={`expand-icon ${isExpanded ? 'expanded' : ''}`}>▶</span>
+                                                            {raceName}
                                                         </td>
-                                                    </tr>
-                                                ),
-                                                <tr 
-                                                    key={result.resultId}
-                                                    onClick={() => handleRaceClick(result.raceId)}
-                                                    style={{ cursor: 'pointer' }}
-                                                >
-                                                    <td>{race.name}</td>
-                                                    <td>{new Date(race.date).toLocaleDateString()}</td>
-                                                    <td>{driver.forename} {driver.surname}</td>
-                                                    <td>{constructor.name}</td>
-                                                    <td>
-                                                        <span className={`position-badge ${isDNF ? 'dnf' : ''}`}>
-                                                            {position}
-                                                        </span>
-                                                    </td>
-                                                    <td>{result.points}</td>
-                                                </tr>
-                                            ].filter(Boolean);
-                                        }).flat()}
+                                                        <td>{resultsForRace.length} result{resultsForRace.length !== 1 ? 's' : ''}</td>
+                                                        <td colSpan="5"></td>
+                                                    </tr>,
+                                                    isExpanded && resultsForRace.map(result => {
+                                                        const race = data.races[result.raceId];
+                                                        const driver = data.drivers[result.driverId];
+                                                        const constructor = data.constructors[result.constructorId];
+                                                        const isDNF = !result.position || result.position === '\\N';
+                                                        const position = isDNF ? 'DNF' : result.position;
+
+                                                        return (
+                                                            <tr 
+                                                                key={result.resultId}
+                                                                className="race-result-row"
+                                                                onClick={() => handleRaceClick(result.raceId)}
+                                                            >
+                                                                <td>{new Date(race.date).getFullYear()}</td>
+                                                                <td>{new Date(race.date).toLocaleDateString()}</td>
+                                                                <td>{driver.forename} {driver.surname}</td>
+                                                                <td>{constructor.name}</td>
+                                                                <td>
+                                                                    <span className={`position-badge ${isDNF ? 'dnf' : ''}`}>
+                                                                        {position}
+                                                                    </span>
+                                                                </td>
+                                                                <td>{result.points}</td>
+                                                            </tr>
+                                                        );
+                                                    })
+                                                ].filter(Boolean);
+                                            }).flat();
+                                        })()}
                                     </tbody>
                                 </table>
                             </>
